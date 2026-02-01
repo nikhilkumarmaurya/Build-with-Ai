@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Glass Expense Tracker</title>
+    <!-- HTML2PDF for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        /* --- CUSTOM CSS --- */
+        :root {
+            --primary: #6a11cb;
+            --secondary: #2575fc;
+            --glass-bg: rgba(255, 255, 255, 0.15);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-color: #ffffff;
+            --card-bg: rgba(255, 255, 255, 0.1);
+            --danger: #ff4b4b;
+            --success: #00d26a;
+            --dark-overlay: rgba(0, 0, 0, 0.85);
+            --input-bg: #ffffff;
+            --input-text: #000000;
+            --completed-bg: rgba(0, 210, 106, 0.25); /* Green tint for completed items */
+            --completed-border: rgba(0, 210, 106, 0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: var(--text-color);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* SVG Icons Styling */
+        .icon {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+            vertical-align: middle;
+        }
+        .icon-lg {
+            width: 24px;
+            height: 24px;
+        }
+        .icon-xl {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 10px;
+        }
+
+        /* Glassmorphism Utilities */
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            transition: transform 0.2s, background 0.3s;
+        }
+
+        .glass-card:active {
+            transform: scale(0.98);
+        }
+
+        /* Completed Item Style */
+        .glass-card.completed {
+            background: var(--completed-bg);
+            border: 1px solid var(--completed-border);
+        }
+
+        /* Header */
+        header {
+            padding: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .app-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Compact Budget Summary (Single Line) */
+        .budget-summary-compact {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.25);
+            padding: 12px 15px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+
+        .summary-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+
+        .summary-item span.label {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .summary-item span.value {
+            font-weight: 700;
+        }
+
+        .summary-divider {
+            width: 1px;
+            height: 25px;
+            background: rgba(255,255,255,0.2);
+            margin: 0 10px;
+        }
+
+        .stat-value.remaining {
+            color: var(--success);
+        }
+        .stat-value.negative {
+            color: var(--danger);
+        }
+
+        /* Main List */
+        #item-list-container {
+            flex: 1;
+            padding: 20px;
+            padding-bottom: 100px; /* Space for bottom bar */
+            overflow-y: auto;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .item-info {
+            flex: 1;
+        }
+
+        .item-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .item-details {
+            font-size: 0.85rem;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        .item-total {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-left: 15px;
+        }
+
+        .action-btn {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            cursor: pointer;
+            margin-left: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .action-btn.delete {
+            background: rgba(255, 75, 75, 0.3);
+        }
+
+        /* Bottom Input Bar */
+        .bottom-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            z-index: 100;
+        }
+
+        .input-group {
+            display: flex;
+            width: 100%;
+        }
+
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 14px 20px;
+            border-radius: 30px;
+            border: none;
+            background: var(--input-bg);
+            color: var(--input-text);
+            font-size: 1rem;
+            outline: none;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--dark-overlay);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: #1e1e1e;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            animation: slideUp 0.3s ease;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .modal-input {
+            width: 100%;
+            background: #ffffff !important;
+            color: #000000 !important;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary { background: var(--secondary); color: white; }
+        .btn-secondary { background: rgba(255,255,255,0.15); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+
+        /* PDF Template (Hidden) */
+        #pdf-template {
+            display: none;
+            background: white;
+            color: #333;
+            padding: 40px;
+            font-family: 'Helvetica', sans-serif;
+        }
+        
+        /* PDF Specific Styles */
+        .pdf-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .pdf-table th, .pdf-table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        .pdf-table th { background: #f4f4f4; }
+        .pdf-summary { text-align: right; margin-top: 20px; }
+        .pdf-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 1.1rem; }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            margin-top: 50px;
+            opacity: 0.6;
+        }
+        
+        /* Settings Button */
+        .settings-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="glass">
+        <div class="header-top">
+            <div class="app-title">
+                <!-- Wallet Icon SVG -->
+                <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M21 18v1c0 1.1-.9 2-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14c1.1 0 2 .9 2 2v1h-9a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+                Smart Tracker
+            </div>
+            <button class="settings-btn" onclick="openSettings()">
+                <!-- Cog Icon SVG -->
+                <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.04.17 0 .36.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.04-.22 0-.41-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+            </button>
+        </div>
+        
+        <!-- Compact Single Line Budget Summary -->
+        <div class="budget-summary-compact" onclick="openBudgetModal()">
+            <div class="summary-item">
+                <span class="label">Budget</span>
+                <span class="value" id="disp-budget">0.00</span>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+                <span class="label">Spent</span>
+                <span class="value" id="disp-spent">0.00</span>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+                <span class="label">Remaining</span>
+                <span class="value remaining" id="disp-remaining">0.00</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main List -->
+    <div id="item-list-container">
+        <!-- Items injected here -->
+        <div class="empty-state">
+            <!-- Basket Icon SVG -->
+            <svg class="icon icon-xl" style="opacity:0.7" viewBox="0 0 24 24"><path d="M17.21 9l-4.38-6.56c-.19-.28-.51-.42-.83-.42-.32 0-.64.14-.83.43L6.79 9H2c-.55 0-1 .45-1 1 0 .09.01.18.04.27l2.54 9.27c.23.84 1 1.46 1.92 1.46h13c.92 0 1.69-.62 1.93-1.46l2.54-9.27L23 10c0-.55-.45-1-1-1h-4.79zM9 9l3-4.4L15 9H9zm3 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+            <p>No items yet.<br>Type below to add.</p>
+            <p style="font-size: 0.8rem; margin-top: 10px; opacity: 0.7;">Ex: "Milk 2 50" (Name Qty Price)</p>
+        </div>
+    </div>
+
+    <!-- Bottom Input -->
+    <div class="bottom-bar glass">
+        <div class="input-group">
+            <input type="text" id="smart-input" placeholder="Item... or 'Item 2 50'" autocomplete="off">
+            <!-- Plus button removed as requested -->
+        </div>
+    </div>
+
+    <!-- Edit Item Modal (SINGLE BOX) -->
+    <div class="modal-overlay" id="edit-modal">
+        <div class="modal-content">
+            <div class="modal-title">Edit Item</div>
+            <div class="form-group">
+                <label>Update Item (Name Qty Price)</label>
+                <!-- Single input for editing -->
+                <input type="text" id="edit-smart-input" class="modal-input" placeholder="Ex: Milk 2 50">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('edit-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEdit()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal-content" style="text-align: center;">
+            <div class="modal-title" style="color: var(--danger);">Delete Item?</div>
+            <p style="margin-bottom: 20px; opacity: 0.9;">Are you sure you want to remove this item?</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('delete-modal')">No, Keep</button>
+                <button class="btn btn-danger" onclick="confirmDelete()">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budget Modal -->
+    <div class="modal-overlay" id="budget-modal">
+        <div class="modal-content">
+            <div class="modal-title">Set Budget</div>
+            <div class="form-group">
+                <label>Total Budget Amount</label>
+                <input type="number" id="budget-input" class="modal-input" placeholder="0.00">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('budget-modal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveBudget()">Set Budget</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal-content">
+            <div class="modal-title">Options</div>
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="generatePDF()">
+                <!-- PDF Icon -->
+                <svg class="icon" viewBox="0 0 24 24"><path d="M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v2.5zm2.5 3.5h-2.5V7h2.5c.83 0 1.5.67 1.5 1.5v2.5c0 .83-.67 1.5-1.5 1.5zm4.5-3.5h-2.5v3.5H18.5v-1h-1v-1h1V9.5zM10 8.5h-.5v2h.5v-2zm3 0h-.5v2h.5v-2z"/></svg>
+                Export PDF
+            </button>
+            <button class="btn btn-secondary" style="width: 100%; background: var(--danger);" onclick="clearAllData()">
+                <!-- Trash Icon -->
+                <svg class="icon" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                Clear All Data
+            </button>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('settings-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden PDF Template -->
+    <div id="pdf-template">
+        <div class="pdf-header">
+            <h1>Shopping List / Expense Report</h1>
+            <p id="pdf-date"></p>
+        </div>
+        <table class="pdf-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody id="pdf-list-body">
+                <!-- Rows -->
+            </tbody>
+        </table>
+        <div class="pdf-summary">
+            <div class="pdf-row"><span>Total Budget:</span> <span id="pdf-budget">0</span></div>
+            <div class="pdf-row"><span>Total Spent:</span> <span id="pdf-spent">0</span></div>
+            <div class="pdf-row" style="font-weight: bold; border-top: 1px solid #333; padding-top: 5px;">
+                <span>Remaining:</span> <span id="pdf-remaining">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        let state = {
+            totalBudget: 0,
+            totalSpent: 0,
+            remainingAmount: 0,
+            itemList: []
+        };
+
+        let editingIndex = -1;
+        let deleteIndex = -1;
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            renderUI();
+            
+            // Enter key listener for input
+            document.getElementById('smart-input').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    processInput();
+                }
+            });
+            
+            // Enter key listener for edit input
+            document.getElementById('edit-smart-input').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    saveEdit();
+                }
+            });
+        });
+
+        // --- Data Persistence ---
+        function loadData() {
+            const saved = localStorage.getItem('offline_tracker_data');
+            if (saved) {
+                state = JSON.parse(saved);
+            }
+            recalculateTotals();
+        }
+
+        function saveData() {
+            localStorage.setItem('offline_tracker_data', JSON.stringify(state));
+        }
+
+        // --- Core Logic ---
+        function recalculateTotals() {
+            state.totalSpent = state.itemList.reduce((sum, item) => sum + item.itemTotal, 0);
+            
+            if (state.totalBudget > 0) {
+                state.remainingAmount = state.totalBudget - state.totalSpent;
+            } else {
+                state.remainingAmount = state.totalSpent; 
+            }
+        }
+
+        // Helper to parse string "Name Qty Price"
+        function parseItemString(rawText) {
+            if (!rawText) return null;
+            
+            const parts = rawText.trim().split(' ');
+            let name = '';
+            let quantity = 1;
+            let price = 0;
+
+            if (parts.length === 1) {
+                name = parts[0];
+            } else if (parts.length === 2) {
+                if (!isNaN(parts[1])) {
+                    name = parts[0];
+                    price = parseFloat(parts[1]);
+                } else {
+                    name = rawText;
+                }
+            } else {
+                const last = parts[parts.length - 1];
+                const secondLast = parts[parts.length - 2];
+
+                if (!isNaN(last)) {
+                    price = parseFloat(last);
+                    if (!isNaN(secondLast)) {
+                        quantity = parseFloat(secondLast);
+                        name = parts.slice(0, parts.length - 2).join(' ');
+                    } else {
+                        name = parts.slice(0, parts.length - 1).join(' ');
+                    }
+                } else {
+                    name = rawText;
+                }
+            }
+            
+            return {
+                name: name,
+                quantity: quantity,
+                price: price,
+                itemTotal: quantity * price
+            };
+        }
+
+        function processInput() {
+            const inputField = document.getElementById('smart-input');
+            const itemData = parseItemString(inputField.value);
+
+            if (!itemData) return;
+
+            state.itemList.push(itemData);
+            recalculateTotals();
+            saveData();
+            renderUI();
+            
+            inputField.value = '';
+            inputField.focus();
+            
+            const container = document.getElementById('item-list-container');
+            setTimeout(() => container.scrollTop = container.scrollHeight, 100);
+        }
+
+        // --- UI Rendering ---
+        function renderUI() {
+            document.getElementById('disp-budget').textContent = state.totalBudget.toFixed(2);
+            document.getElementById('disp-spent').textContent = state.totalSpent.toFixed(2);
+            
+            const remEl = document.getElementById('disp-remaining');
+            remEl.textContent = state.remainingAmount.toFixed(2);
+            
+            remEl.classList.remove('negative', 'remaining');
+            if (state.totalBudget > 0) {
+                if (state.remainingAmount < 0) remEl.classList.add('negative');
+                else remEl.classList.add('remaining');
+            }
+
+            const listContainer = document.getElementById('item-list-container');
+            listContainer.innerHTML = '';
+
+            if (state.itemList.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        <svg class="icon icon-xl" style="opacity:0.7" viewBox="0 0 24 24"><path d="M17.21 9l-4.38-6.56c-.19-.28-.51-.42-.83-.42-.32 0-.64.14-.83.43L6.79 9H2c-.55 0-1 .45-1 1 0 .09.01.18.04.27l2.54 9.27c.23.84 1 1.46 1.92 1.46h13c.92 0 1.69-.62 1.93-1.46l2.54-9.27L23 10c0-.55-.45-1-1-1h-4.79zM9 9l3-4.4L15 9H9zm3 8c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
+                        <p>No items yet.<br>Type below to add.</p>
+                        <p style="font-size: 0.8rem; margin-top: 10px; opacity: 0.7;">Ex: "Milk 2 50"</p>
+                    </div>`;
+                return;
+            }
+
+            state.itemList.forEach((item, index) => {
+                const div = document.createElement('div');
+                // Check if item has a price/amount entered (greater than 0)
+                const isCompleted = item.price > 0;
+                div.className = 'glass-card item-row ' + (isCompleted ? 'completed' : '');
+                
+                // Clicking the row opens edit modal
+                div.innerHTML = `
+                    <div class="item-info" onclick="openEditModal(${index})">
+                        <div class="item-name">${item.name}</div>
+                        <div class="item-details">${item.quantity} x ${item.price.toFixed(2)}</div>
+                    </div>
+                    <div class="item-total" onclick="openEditModal(${index})">${item.itemTotal.toFixed(2)}</div>
+                    <div>
+                        <button class="action-btn delete" onclick="requestDelete(event, ${index})">
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                        </button>
+                    </div>
+                `;
+                listContainer.appendChild(div);
+            });
+        }
+
+        // --- CRUD Operations ---
+        
+        // 1. Delete with Confirmation
+        function requestDelete(event, index) {
+            event.stopPropagation(); // Prevent opening edit modal
+            deleteIndex = index;
+            document.getElementById('delete-modal').style.display = 'flex';
+        }
+
+        function confirmDelete() {
+            if (deleteIndex > -1) {
+                state.itemList.splice(deleteIndex, 1);
+                recalculateTotals();
+                saveData();
+                renderUI();
+            }
+            closeModal('delete-modal');
+            deleteIndex = -1;
+        }
+
+        // 2. Edit with Single Box
+        function openEditModal(index) {
+            editingIndex = index;
+            const item = state.itemList[index];
+            // Combine into single string for the input
+            const combinedStr = `${item.name} ${item.quantity} ${item.price}`;
+            
+            document.getElementById('edit-smart-input').value = combinedStr;
+            document.getElementById('edit-modal').style.display = 'flex';
+            
+            // Focus input
+            setTimeout(() => document.getElementById('edit-smart-input').focus(), 100);
+        }
+
+        function saveEdit() {
+            if (editingIndex === -1) return;
+            
+            const rawText = document.getElementById('edit-smart-input').value;
+            const itemData = parseItemString(rawText);
+
+            if (itemData) {
+                state.itemList[editingIndex] = itemData;
+                recalculateTotals();
+                saveData();
+                renderUI();
+                closeModal('edit-modal');
+            }
+        }
+
+        // --- Budget Logic ---
+        function openBudgetModal() {
+            document.getElementById('budget-input').value = state.totalBudget;
+            document.getElementById('budget-modal').style.display = 'flex';
+            setTimeout(() => document.getElementById('budget-input').focus(), 100);
+        }
+
+        function saveBudget() {
+            const val = parseFloat(document.getElementById('budget-input').value);
+            state.totalBudget = val > 0 ? val : 0;
+            recalculateTotals();
+            saveData();
+            renderUI();
+            closeModal('budget-modal');
+        }
+
+        // --- Settings & PDF ---
+        function openSettings() {
+            document.getElementById('settings-modal').style.display = 'flex';
+        }
+
+        function clearAllData() {
+            if(confirm("Are you sure you want to clear ALL data? This cannot be undone.")) {
+                state.itemList = [];
+                state.totalBudget = 0;
+                state.totalSpent = 0;
+                state.remainingAmount = 0;
+                saveData();
+                renderUI();
+                closeModal('settings-modal');
+            }
+        }
+
+        function generatePDF() {
+            document.getElementById('pdf-date').innerText = new Date().toLocaleDateString();
+            const tbody = document.getElementById('pdf-list-body');
+            tbody.innerHTML = '';
+            
+            state.itemList.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.name}</td>
+                    <td>${item.quantity}</td>
+                    <td>${item.price.toFixed(2)}</td>
+                    <td>${item.itemTotal.toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('pdf-budget').innerText = state.totalBudget.toFixed(2);
+            document.getElementById('pdf-spent').innerText = state.totalSpent.toFixed(2);
+            document.getElementById('pdf-remaining').innerText = state.remainingAmount.toFixed(2);
+
+            const element = document.getElementById('pdf-template');
+            element.style.display = 'block';
+
+            const opt = {
+                margin:       0.5,
+                filename:     'expense-report.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            if (typeof html2pdf !== 'undefined') {
+                html2pdf().set(opt).from(element).save().then(() => {
+                    element.style.display = 'none';
+                    closeModal('settings-modal');
+                }).catch(err => {
+                    alert("PDF Error: " + err);
+                    element.style.display = 'none';
+                });
+            } else {
+                alert("PDF Library not loaded.");
+                element.style.display = 'none';
+            }
+        }
+
+        // --- Utilities ---
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>
