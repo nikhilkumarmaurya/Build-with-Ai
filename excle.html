@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=800">
+    <title>Developed By Nik - Excel Viewer</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-content { flex-grow: 1; text-align: center; }
+        .header h1 { font-size: 2em; margin-bottom: 5px; }
+        .header p { opacity: 0.9; font-size: 1em; }
+
+        /* Buttons */
+        .reset-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 8px 15px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            display: none;
+        }
+
+        .reset-btn:hover { background: white; color: #667eea; }
+
+        /* Upload Section */
+        .upload-section { padding: 40px; text-align: center; }
+        
+        .upload-box {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 60px 40px;
+            background: #f8f9ff;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upload-box:hover { border-color: #764ba2; background: #f0f2ff; transform: translateY(-2px); }
+        .upload-box.dragover { border-color: #764ba2; background: #e8eaff; }
+        
+        .upload-icon { font-size: 4em; margin-bottom: 20px; color: #667eea; }
+        input[type="file"] { display: none; }
+        
+        .btn-upload {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 20px;
+            display: inline-block;
+        }
+
+        /* Files Bar */
+        .files-bar {
+            display: none;
+            background: #2d3436;
+            padding: 10px 20px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .file-chip {
+            display: inline-block;
+            padding: 8px 15px;
+            margin-right: 10px;
+            background: rgba(255,255,255,0.1);
+            color: #dfe6e9;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            border: 1px solid transparent;
+        }
+
+        .file-chip:hover { background: rgba(255,255,255,0.2); }
+        
+        .file-chip.active {
+            background: #00b894;
+            color: white;
+            border-color: #00b894;
+            font-weight: bold;
+        }
+
+        /* Search Section */
+        .search-section {
+            display: none;
+            padding: 15px 40px;
+            background: #f8f9ff;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .search-box { position: relative; max-width: 600px; margin: 0 auto; }
+        
+        .search-input {
+            width: 100%;
+            padding: 12px 45px 12px 20px;
+            font-size: 1em;
+            border: 2px solid #667eea;
+            border-radius: 50px;
+            outline: none;
+        }
+        .search-input:focus { box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+        .search-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #667eea; }
+        
+        .search-results { text-align: center; color: #667eea; font-weight: 500; margin-top: 10px; font-size: 0.9em; }
+        /* Highlight Numbers */
+        .highlight-phone { 
+            background-color: #f0fff0; /* Light green background */
+            color: #25d366; /* WhatsApp green text */
+            font-weight: bold; 
+            padding: 2px 4px; 
+            border-radius: 3px; 
+            margin-right: 5px;
+        }
+        /* Highlight Search Terms */
+        .highlight-search { background-color: yellow; font-weight: bold; padding: 2px 4px; border-radius: 3px; }
+
+        /* Sheet Tabs */
+        .sheet-tabs {
+            display: none;
+            padding: 0 40px;
+            background: #f1f2f6;
+            border-bottom: 2px solid #e0e0e0;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .sheet-tab {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-right: 2px;
+            background: #dfe6e9;
+            color: #636e72;
+            cursor: pointer;
+            font-weight: 500;
+            border-radius: 5px 5px 0 0;
+            margin-top: 10px;
+        }
+
+        .sheet-tab.active {
+            background: white;
+            color: #667eea;
+            border-top: 3px solid #667eea;
+        }
+
+        /* Table */
+        .table-container {
+            display: none;
+            padding: 20px 40px;
+            overflow-x: auto;
+            max-height: 70vh;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            font-size: 0.95em;
+        }
+
+        th {
+            background: #f8f9fa;
+            color: #2d3436;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 700;
+            border-bottom: 2px solid #667eea;
+            position: sticky;
+            top: 0;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        /* Serial Number Column Style */
+        th.num-col, td.num-col {
+            background: #eee;
+            color: #555;
+            text-align: center;
+            width: 50px;
+            font-weight: bold;
+            border-right: 2px solid #ddd;
+        }
+
+        /* WhatsApp Button */
+        .whatsapp-btn {
+            background: #25d366;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.8em;
+            display: inline-flex; /* Use flex to align icon and text */
+            align-items: center;
+            gap: 4px; /* Space between icon and text */
+            transition: background 0.2s ease;
+        }
+        .whatsapp-btn:hover { background: #128c7e; }
+
+        td { padding: 10px 15px; border-bottom: 1px solid #eee; white-space: nowrap; }
+        tr:hover { background: #f0f2ff; }
+        
+        .no-results { background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin-top: 10px; text-align: center; }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div style="width: px;"></div> <div class="header-content">
+                <h1> Excel Viewer</h1>
+                <p>Multi-File Support with Universal WhatsApp Chat Button</p>
+            </div>
+            <button class="reset-btn" id="resetBtn" onclick="resetViewer()">↻ Reset</button>
+        </div>
+
+        <div class="files-bar" id="filesBar"></div>
+
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-box" id="uploadBox">
+                <div class="upload-icon">📁</div>
+                <h2>Drag & Drop Multiple XLSX Files</h2>
+                <p style="margin: 20px 0; color: #666;">or</p>
+                <label for="fileInput" class="btn-upload">Select Files</label>
+                <input type="file" id="fileInput" accept=".xlsx, .xls" multiple>
+            </div>
+        </div>
+
+        <div class="search-section" id="searchSection">
+            <div class="search-box">
+                <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search (comma separated: e.g., BCA, female)...">
+                <span class="search-icon">🔍</span>
+            </div>
+            <div class="search-results" id="searchResults"></div>
+        </div>
+
+        <div class="sheet-tabs" id="sheetTabs"></div>
+        <div class="table-container" id="tableContainer"></div>
+    </div>
+
+    <script>
+        let uploadedFiles = [];
+        let currentFileIndex = 0;
+        let currentSheetName = null;
+
+        const fileInput = document.getElementById('fileInput');
+        const uploadBox = document.getElementById('uploadBox');
+        const uploadSection = document.getElementById('uploadSection');
+        const filesBar = document.getElementById('filesBar');
+        const sheetTabs = document.getElementById('sheetTabs');
+        const tableContainer = document.getElementById('tableContainer');
+        const resetBtn = document.getElementById('resetBtn');
+        const searchSection = document.getElementById('searchSection');
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+
+        // --- Event Listeners ---
+        fileInput.addEventListener('change', handleFileSelect);
+        searchInput.addEventListener('input', handleSearch);
+
+        // Drag & Drop
+        uploadBox.addEventListener('dragover', (e) => { e.preventDefault(); uploadBox.classList.add('dragover'); });
+        uploadBox.addEventListener('dragleave', () => { uploadBox.classList.remove('dragover'); });
+        uploadBox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadBox.classList.remove('dragover');
+            if(e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
+        });
+
+        function handleFileSelect(e) {
+            if(e.target.files.length > 0) processFiles(e.target.files);
+        }
+
+        async function processFiles(files) {
+            const readers = [];
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (!file.name.match(/\.(xlsx|xls)$/)) continue;
+
+                const p = new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const data = new Uint8Array(e.target.result);
+                        const wb = XLSX.read(data, { type: 'array' });
+                        resolve({ name: file.name, workbook: wb });
+                    };
+                    reader.readAsArrayBuffer(file);
+                });
+                readers.push(p);
+            }
+
+            if (readers.length === 0) {
+                alert("Please select valid Excel files (.xlsx)");
+                return;
+            }
+
+            const results = await Promise.all(readers);
+            uploadedFiles = [...uploadedFiles, ...results];
+            
+            uploadSection.style.display = 'none';
+            filesBar.style.display = 'block';
+            sheetTabs.style.display = 'block';
+            tableContainer.style.display = 'block';
+            searchSection.style.display = 'block';
+            resetBtn.style.display = 'inline-block';
+
+            renderFilesBar();
+            switchFile(uploadedFiles.length - results.length);
+        }
+
+        function renderFilesBar() {
+            filesBar.innerHTML = '';
+            uploadedFiles.forEach((fileObj, index) => {
+                const chip = document.createElement('span');
+                chip.className = `file-chip ${index === currentFileIndex ? 'active' : ''}`;
+                chip.innerHTML = `📄 ${fileObj.name}`;
+                chip.onclick = () => switchFile(index);
+                filesBar.appendChild(chip);
+            });
+        }
+
+        function switchFile(index) {
+            currentFileIndex = index;
+            renderFilesBar();
+            const wb = uploadedFiles[currentFileIndex].workbook;
+            
+            sheetTabs.innerHTML = '';
+            wb.SheetNames.forEach((name, sheetIdx) => {
+                const tab = document.createElement('span');
+                tab.className = 'sheet-tab' + (sheetIdx === 0 ? ' active' : '');
+                tab.textContent = name;
+                tab.onclick = () => {
+                    document.querySelectorAll('.sheet-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    displaySheet(name);
+                };
+                sheetTabs.appendChild(tab);
+            });
+            displaySheet(wb.SheetNames[0]);
+        }
+        
+        // Helper function to check if value is likely a 10-digit phone number
+        function isProbablyPhoneNumber(val) {
+            const numStr = String(val || '').replace(/\D/g, ''); // Remove non-digits
+            // Check for exactly 10 digits
+            return numStr.length === 10;
+        }
+
+        // Helper function to format phone number for WhatsApp
+        function formatPhoneNumber(num) {
+            let phone = String(num || '').replace(/\D/g, '');
+            // If it's 10 digits, assume Indian number and prepend 91 (WhatsApp format)
+            if (phone.length === 10) {
+                return '91' + phone; 
+            }
+            // If it's already 12 or more digits (e.g., +91...), just return as is (after cleaning non-digits)
+            return phone;
+        }
+
+        function buildCellContent(cellVal, isSearchMode = false, searchTerms = []) {
+            let cellContent = String(cellVal !== undefined ? cellVal : '');
+            let phoneNumber = null;
+
+            // 1. Check for 10-digit number and prepare WhatsApp button
+            if (isProbablyPhoneNumber(cellVal)) {
+                phoneNumber = formatPhoneNumber(cellVal);
+                // Highlight the number specifically
+                cellContent = `<span class="highlight-phone">${cellVal}</span>`;
+            } else {
+                cellContent = String(cellVal !== undefined ? cellVal : '');
+            }
+
+            // 2. Apply search highlighting (only in search mode)
+            if (isSearchMode && searchTerms.length > 0) {
+                // To avoid highlighting within the phone number span if possible, we use a temp marker
+                // But for simplicity and wide coverage, let's just apply highlighting over the text content.
+                searchTerms.forEach(term => {
+                    if (cellContent.toLowerCase().includes(term)) {
+                        cellContent = cellContent.replace(new RegExp(term, "gi"), (match) => `<span class="highlight-search">${match}</span>`);
+                    }
+                });
+            }
+
+            // 3. Append WhatsApp button if a valid number was found
+            if (phoneNumber) {
+                const whatsappUrl = `https://wa.me/${phoneNumber}`;
+                const button = `<a class="whatsapp-btn" href="${whatsappUrl}" target="_blank">💬 Chat</a>`;
+                cellContent = `<div style="display:flex; justify-content:space-between; align-items:center;">${cellContent} ${button}</div>`;
+            }
+
+            return cellContent;
+        }
+
+
+        function displaySheet(sheetName) {
+            currentSheetName = sheetName;
+            searchInput.value = '';
+            searchResults.innerHTML = '';
+            
+            const wb = uploadedFiles[currentFileIndex].workbook;
+            const ws = wb.Sheets[sheetName];
+            
+            // 💡 FIX APPLIED HERE: Added raw: false and dateNF to correctly display dates/timestamps
+            const data = XLSX.utils.sheet_to_json(ws, { 
+                header: 1, 
+                raw: false, 
+                dateNF: 'dd-mm-yyyy hh:mm:ss' 
+            });
+            
+            if (!data || data.length === 0) {
+                tableContainer.innerHTML = '<p style="text-align:center; padding:20px;">Empty Sheet</p>';
+                return;
+            }
+
+            let tableHTML = '<table><thead><tr>';
+            
+            // --- HEADER ---
+            tableHTML += '<th class="num-col">#</th>'; // Numbering Column
+            
+            const headers = data[0];
+            headers.forEach(header => {
+                tableHTML += `<th>${header !== undefined ? header : ''}</th>`;
+            });
+            tableHTML += '</tr></thead><tbody>';
+
+            // --- DATA ROWS ---
+            for(let i = 1; i < data.length; i++) {
+                tableHTML += '<tr>';
+                tableHTML += `<td class="num-col">${i}</td>`; // Serial Number
+                
+                const row = data[i];
+                for(let j = 0; j < headers.length; j++) {
+                    const cellVal = row[j];
+                    const cellContent = buildCellContent(cellVal);
+                    tableHTML += `<td>${cellContent}</td>`;
+                }
+                tableHTML += '</tr>';
+            }
+            
+            tableHTML += '</tbody></table>';
+            tableContainer.innerHTML = tableHTML;
+        }
+
+        function handleSearch() {
+            const rawTerm = searchInput.value.trim();
+            if (!rawTerm) {
+                displaySheet(currentSheetName);
+                return;
+            }
+
+            const searchTerms = rawTerm.toLowerCase().split(',').map(term => term.trim()).filter(term => term.length > 0);
+            
+            if (searchTerms.length === 0) {
+                displaySheet(currentSheetName);
+                return;
+            }
+
+            const wb = uploadedFiles[currentFileIndex].workbook;
+            const ws = wb.Sheets[currentSheetName];
+            
+            // 💡 FIX APPLIED HERE: Added raw: false and dateNF to correctly display dates/timestamps
+            const data = XLSX.utils.sheet_to_json(ws, { 
+                header: 1, 
+                raw: false, 
+                dateNF: 'dd-mm-yyyy hh:mm:ss' 
+            });
+            
+            if (!data || data.length === 0) return;
+
+            let matches = 0;
+            let tableHTML = '<table><thead><tr>';
+            
+            // Header
+            const headers = data[0];
+            tableHTML += '<th class="num-col">#</th>'; // Number Col
+            headers.forEach(h => tableHTML += `<th>${h || ''}</th>`);
+            tableHTML += '</tr></thead><tbody>';
+
+            // Filter Rows
+            let serialNo = 1; // Counter for filtered results
+            for(let i = 1; i < data.length; i++) {
+                const row = data[i];
+                if(!row) continue;
+
+                let rowStr = row.map(c => c ? c.toString() : '').join(' ').toLowerCase();
+                
+                // Check if ALL search terms are present in the row string
+                const allTermsMatch = searchTerms.every(term => rowStr.includes(term));
+
+                if(allTermsMatch) {
+                    matches++;
+                    tableHTML += '<tr>';
+                    tableHTML += `<td class="num-col">${serialNo++}</td>`;
+
+                    // Add Cells
+                    for(let j = 0; j < headers.length; j++) {
+                        const cellVal = row[j];
+                        // Pass true for isSearchMode and the searchTerms array
+                        const cellContent = buildCellContent(cellVal, true, searchTerms);
+                        tableHTML += `<td>${cellContent}</td>`;
+                    }
+                    tableHTML += '</tr>';
+                }
+            }
+            tableHTML += '</tbody></table>';
+
+            if (matches === 0) {
+                tableContainer.innerHTML = `<div class="no-results">❌ No results found for "${rawTerm}"</div>`;
+            } else {
+                tableContainer.innerHTML = tableHTML;
+            }
+            searchResults.innerHTML = `Found ${matches} matching rows`;
+        }
+
+        function resetViewer() {
+            if(confirm("Clear all files?")) {
+                uploadedFiles = [];
+                currentFileIndex = 0;
+                fileInput.value = '';
+                uploadSection.style.display = 'block';
+                
+                filesBar.style.display = 'none';
+                sheetTabs.style.display = 'none';
+                tableContainer.style.display = 'none';
+                searchSection.style.display = 'none';
+                resetBtn.style.display = 'none';
+                filesBar.innerHTML = '';
+            }
+        }
+    </script>
+</body>
+</html>
